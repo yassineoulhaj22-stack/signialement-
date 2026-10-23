@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Signalement Urbain</title>
+<link rel="stylesheet" href="lib/leaflet.css">
+<style>
+:root{--p:#1D4ED8;--pd:#1E3A8A;--ok:#2E7D32;--warn:#B45309;--err:#C62828;--info:#475569;--txt:#0F172A;--sec:#475569;--bg:#F8FAFC;--card:#fff;--bd:#CBD5E1}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--txt);background:var(--bg)}
+button{font:inherit;cursor:pointer;border:0}
+.screen{position:fixed;inset:0;display:none;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+.screen.active{display:block}
+.scroll{overflow-y:auto;padding:20px 20px 48px}
+.scroll.active{padding-top:calc(20px + env(safe-area-inset-top))}
+#map{position:absolute;inset:0}
+.btn{display:flex;align-items:center;justify-content:center;width:100%;height:56px;border-radius:28px;font-weight:700;font-size:17px}
+.btn.p{background:var(--p);color:#fff}.btn.p:active{background:var(--pd)}
+.btn.s{background:transparent;border:2px solid var(--p);color:var(--p)}
+.btn.g{background:transparent;color:var(--p)}
+.btn[disabled]{opacity:.55}
+#fab{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(32px + env(safe-area-inset-bottom));z-index:1000;height:64px;padding:0 30px;border-radius:32px;background:var(--p);color:#fff;font-size:18px;font-weight:700;box-shadow:0 6px 18px rgba(29,78,216,.45)}
+#fab:active{background:var(--pd)}
+#listBtn{position:absolute;top:calc(14px + env(safe-area-inset-top));right:14px;z-index:1000;min-height:48px;padding:0 18px;border-radius:24px;background:#fff;color:var(--p);font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,.2)}
+#banner{position:absolute;top:calc(14px + env(safe-area-inset-top));left:14px;right:150px;z-index:1000;background:var(--warn);color:#fff;font-size:12px;padding:10px 12px;border-radius:12px}
+#sheet{position:absolute;left:14px;right:14px;bottom:calc(110px + env(safe-area-inset-bottom));z-index:1000;max-height:45%;overflow:auto;background:#fff;border-radius:16px;padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+#sheet h3{margin:0 0 6px;font-size:16px}
+.row{display:flex;justify-content:space-between;align-items:center;min-height:52px;border-bottom:1px solid var(--bd);width:100%;background:none;text-align:left;color:var(--txt)}
+.row small{font-weight:700}
+.empty{color:var(--sec);margin:6px 0}
+h1{font-size:24px;margin:0 0 12px;font-weight:800}
+h2{font-size:16px;margin:22px 0 10px}
+.top{display:flex;justify-content:flex-end}
+.x{width:48px;height:48px;background:none;font-size:22px;color:var(--txt)}
+.gps{display:inline-block;padding:9px 12px;border-radius:12px;color:#fff;font-weight:600;font-size:14px;background:var(--info)}
+.gps.ok{background:var(--ok)}.gps.ko{background:var(--err)}
+.photo{margin-top:16px;height:200px;border-radius:16px;background:#fff;border:2px dashed var(--bd);display:flex;align-items:center;justify-content:center;color:var(--sec);font-size:16px;overflow:hidden;width:100%;padding:0}
+.photo img{width:100%;height:100%;object-fit:cover}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cat{min-height:96px;border-radius:16px;background:#fff;border:2px solid var(--bd);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-weight:600;color:var(--txt)}
+.cat span{font-size:30px}.cat.sel{border-color:var(--p);background:#EFF4FF}
+#mini{height:160px;border-radius:16px;margin-top:8px;z-index:0}
+.pin{width:22px;height:22px;border-radius:50% 50% 50% 0;background:var(--err);transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.warn{background:#FEF3C7;color:var(--warn);padding:12px;border-radius:12px;margin-top:14px}
+.msg{color:var(--warn);margin:8px 0 0;font-size:14px}
+textarea{width:100%;min-height:64px;margin-top:16px;border:1px solid var(--bd);border-radius:12px;padding:12px;font:inherit}
+.link{background:none;color:var(--p);font-weight:600;min-height:44px;padding:0}
+#confirm{text-align:center;padding:24px}
+#confirm.active{display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring{width:96px;height:96px;border-radius:50%;background:var(--ok);color:#fff;font-size:48px;display:flex;align-items:center;justify-content:center;animation:pop .35s ease-out}
+@keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+@media (prefers-reduced-motion:reduce){.ring{animation:none}}
+.receipt{width:100%;background:#fff;border-radius:16px;padding:16px;margin:20px 0 6px}
+.receipt b{display:block;font-size:22px;color:var(--p);margin:4px 0}
+.muted{color:var(--sec);font-size:13px}
+.badge{display:inline-block;padding:6px 12px;border-radius:16px;color:#fff;font-weight:700;margin-top:6px}
+.steps{margin:26px 0}
+.step{display:flex;gap:14px;min-height:76px}
+.rail{display:flex;flex-direction:column;align-items:center}
+.dot{width:20px;height:20px;border-radius:50%;background:var(--bd);flex:none}
+.line{width:3px;flex:1;background:var(--bd)}
+.step .t{font-size:16px}.step.cur .t{font-weight:800}.step.todo .t{opacity:.5}
+.card{background:#fff;border-radius:16px;padding:16px}
+.card img{width:100%;height:180px;object-fit:cover;border-radius:12px;margin-bottom:8px}
+#toast{position:fixed;left:16px;right:16px;bottom:calc(24px + env(safe-area-inset-bottom));z-index:3000;background:var(--txt);color:#fff;padding:14px 16px;border-radius:12px;display:none;text-align:center}
+</style>
+</head>
+<body>
+
+<!-- Accueil / Carte -->
+<section id="home" class="screen active">
+  <div id="map"></div>
+  <div id="banner" hidden>Mode hors ligne · <span id="pc">0</span> signalement(s) en attente</div>
+  <button id="listBtn">Mes signalements</button>
+  <div id="sheet" hidden><h3>Mes signalements</h3><div id="list"></div></div>
+  <button id="fab" aria-label="Signaler un problème">📷&nbsp; Signaler</button>
+</section>
+
+<!-- Capture & GPS -->
+<section id="capture" class="screen scroll">
+  <div class="top"><button class="x" id="cClose" aria-label="Fermer">✕</button></div>
+  <h1>Nouveau signalement</h1>
+  <span id="gps" class="gps">📍 Recherche de position…</span>
+  <div id="gpsMsg" class="msg" hidden></div>
+  <button class="photo" id="photoBtn" aria-label="Prendre la photo">📷&nbsp; Prendre la photo</button>
+  <input type="file" id="file" accept="image/*" capture="environment" hidden>
+  <button class="link" id="retake" hidden>Reprendre</button>
+  <h2>Quel type de problème ?</h2>
+  <div class="grid" id="cats"></div>
+  <div id="dup" class="warn" hidden></div>
+  <h2>Position</h2>
+  <div class="muted">Déplacez le repère si besoin.</div>
+  <div id="mini"></div>
+  <textarea id="note" placeholder="Ajouter un détail (facultatif)"></textarea>
+  <button class="btn p" id="send" style="margin-top:22px">Envoyer le signalement</button>
+</section>
+
+<!-- Confirmation -->
+<section id="confirm" class="screen">
+  <div class="ring">✔</div>
+  <h1 id="cTitle" style="margin-top:20px">Signalement envoyé !</h1>
+  <div class="muted" id="cSub">Merci de contribuer à votre ville.</div>
+  <div class="receipt"><span class="muted">Numéro de suivi</span><b id="cNum"></b><span class="muted" id="cDate"></span></div>
+  <div class="muted" style="margin-bottom:12px">Vous serez notifié à chaque étape.</div>
+  <button class="btn p" id="cTrack">Suivre mon signalement</button>
+  <button class="btn s" id="cShare" style="margin-top:10px">Partager</button>
+  <button class="btn g" id="cHome">Retour à la carte</button>
+</section>
+
+<!-- Timeline -->
+<section id="timeline" class="screen scroll">
+  <button class="link" id="tBack">← Retour</button>
+  <h1 id="tNum" style="margin-top:8px"></h1>
+  <span class="badge" id="tBadge"></span>
+  <div class="steps" id="steps"></div>
+  <div class="card" id="tCard"></div>
+</section>
+
+<div id="toast" role="status"></div>
+
+<script src="lib/leaflet.js"></script>
+<script>
+const CATS=[{id:'proprete',l:'Propreté',i:'🗑️'},{id:'eclairage',l:'Éclairage public',i:'💡'},{id:'voirie',l:'Voirie',i:'🕳️'},{id:'autre',l:'Autre',i:'📍'}];
+const ST={'Reçu':{c:'#475569',i:'📥'},'En cours':{c:'#B45309',i:'🛠'},'Résolu':{c:'#2E7D32',i:'✅'},"En attente d'envoi":{c:'#64748B',i:'🕓'}};
+const STEPS=['Reçu','En cours','Résolu'];
+const DEFAULT=[33.5731,-7.5898];
+const KEY='su_reports_v1';
+const $=s=>document.querySelector(s);
+let reports=[];try{reports=JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){}
+let draft={},map,mini,miniPin,markers,me=null,current=null,tick=null;
+
+function save(){try{localStorage.setItem(KEY,JSON.stringify(reports))}catch(e){toast("Stockage plein : supprimez d'anciens signalements.")}}
+function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',3500)}
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$('#'+id).classList.add('active');clearInterval(tick);if(id==='home'){setTimeout(()=>map.invalidateSize(),50);renderHome()}}
+function trk(){return 'SU-'+new Date().getFullYear()+'-'+String(Math.floor(Math.random()*1e6)).padStart(6,'0')}
+function status(r){if(r.pending)return "En attente d'envoi";const m=(Date.now()-(r.sentAt||r.createdAt))/60000;return m<1?'Reçu':m<2?'En cours':'Résolu'} // démo : simulé
+function dist(a,b,c,d){const R=6371000,t=x=>x*Math.PI/180,dl=t(c-a),dg=t(d-b);const h=Math.sin(dl/2)**2+Math.cos(t(a))*Math.cos(t(c))*Math.sin(dg/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
+// Envoi simulé : remplacez par fetch('https://votre-api/signalements',{method:'POST',body:JSON.stringify(r)})
+function fakeSend(r){return new Promise(ok=>setTimeout(ok,600))}
+const fmt=t=>new Date(t).toLocaleString('fr-FR');
+
+/* ---------- Carte d'accueil ---------- */
+function initMap(){
+  map=L.map('map',{zoomControl:false}).setView(DEFAULT,15);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  markers=L.layerGroup().addTo(map);
+  if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{
+    me=[p.coords.latitude,p.coords.longitude];map.setView(me,16);
+    L.circleMarker(me,{radius:8,color:'#fff',weight:3,fillColor:'#1D4ED8',fillOpacity:1}).addTo(map);
+  },()=>{},{enableHighAccuracy:true,timeout:10000});
+}
+function renderHome(){
+  markers.clearLayers();
+  reports.forEach(r=>L.circleMarker([r.lat,r.lng],{radius:11,color:'#fff',weight:2,fillColor:ST[status(r)].c,fillOpacity:1}).addTo(markers).on('click',()=>openTimeline(r)));
+  const n=reports.filter(r=>r.pending).length;
+  $('#banner').hidden=navigator.onLine;$('#pc').textContent=n;
+  const l=$('#list');l.innerHTML='';
+  if(!reports.length){l.innerHTML='<p class="empty">Aucun signalement pour l\'instant. Un problème près de vous ? Signalez-le en 30 secondes.</p>';return}
+  reports.forEach(r=>{const s=status(r),b=document.createElement('button');b.className='row';
+    b.innerHTML='<span></span><small></small>';b.firstChild.textContent=ST[s].i+' '+r.id;b.lastChild.textContent=s;b.lastChild.style.color=ST[s].c;
+    b.onclick=()=>openTimeline(r);l.appendChild(b)});
+}
+
+/* ---------- Capture ---------- */
+function openCapture(){
+  draft={photo:null,cat:null,lat:DEFAULT[0],lng:DEFAULT[1],acc:null};
+  $('#note').value='';$('#dup').hidden=true;$('#send').disabled=false;$('#send').textContent='Envoyer le signalement';
+  $('#photoBtn').innerHTML='📷&nbsp; Prendre la photo';$('#retake').hidden=true;
+  renderCats();setGps('search');show('capture');initMini();locate();
+  $('#file').click(); // le tap sur « Signaler » ouvre directement la caméra
+}
+function renderCats(){const g=$('#cats');g.innerHTML='';CATS.forEach(c=>{const b=document.createElement('button');b.className='cat'+(draft.cat===c.id?' sel':'');
+  b.innerHTML='<span>'+c.i+'</span>'+c.l;b.onclick=()=>{draft.cat=c.id;renderCats();checkDup()};g.appendChild(b)})}
+function setGps(s,txt){const g=$('#gps');g.className='gps'+(s==='ok'?' ok':s==='ko'?' ko':'');
+  g.textContent=s==='ok'?'📍 Position détectée · ±'+draft.acc+' m':s==='ko'?'Position non disponible':'📍 Recherche de position…';
+  const m=$('#gpsMsg');m.hidden=!txt;m.textContent=txt||''}
+function locate(){
+  if(!navigator.geolocation){setGps('ko','Placez le repère sur la carte.');return}
+  navigator.geolocation.getCurrentPosition(p=>{
+    draft.lat=p.coords.latitude;draft.lng=p.coords.longitude;draft.acc=Math.round(p.coords.accuracy||0);
+    setGps('ok',draft.acc>50?'Précision faible. Ajustez le repère sur la carte.':'');
+    mini.setView([draft.lat,draft.lng],17);miniPin.setLatLng([draft.lat,draft.lng]);checkDup();
+  },()=>{setGps('ko','Position non disponible. Placez le repère sur la carte ou activez la localisation dans les réglages.')},
+  {enableHighAccuracy:true,timeout:10000});
+}
+function initMini(){
+  if(!mini){
+    mini=L.map('mini',{zoomControl:false}).setView(DEFAULT,16);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(mini);
+    miniPin=L.marker(DEFAULT,{draggable:true,icon:L.divIcon({className:'',html:'<div class="pin"></div>',iconSize:[22,22],iconAnchor:[11,22]})}).addTo(mini);
+    miniPin.on('dragend',()=>{const p=miniPin.getLatLng();draft.lat=p.lat;draft.lng=p.lng;draft.acc=null;checkDup()});
+  }
+  setTimeout(()=>{mini.invalidateSize();mini.setView(DEFAULT,16);miniPin.setLatLng(DEFAULT)},120);
+}
+function checkDup(){
+  const d=$('#dup'),s=draft.cat&&reports.find(r=>r.cat===draft.cat&&dist(r.lat,r.lng,draft.lat,draft.lng)<50);
+  d.hidden=!s;if(s)d.textContent='Un signalement similaire existe déjà à proximité ('+s.id+'). Vous pouvez quand même envoyer le vôtre.';
+}
+function compress(file){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{
+  const k=Math.min(1,900/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=im.width*k;c.height=im.height*k;
+  c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.6))};im.onerror=rej;im.src=fr.result};fr.onerror=rej;fr.readAsDataURL(file)})}
+async function onFile(e){const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{draft.photo=await compress(f);$('#photoBtn').innerHTML='<img alt="Photo du problème" src="'+draft.photo+'">';$('#retake').hidden=false}
+  catch(err){toast("Impossible de lire la photo. Réessayez.")}}
+async function submit(){
+  if(!draft.photo||!draft.cat){toast('Prenez une photo et choisissez une catégorie.');return}
+  const b=$('#send');b.disabled=true;b.textContent='Envoi…';
+  const r={id:trk(),photo:draft.photo,cat:draft.cat,note:$('#note').value.trim(),lat:draft.lat,lng:draft.lng,createdAt:Date.now(),pending:true};
+  if(navigator.onLine){try{await fakeSend(r);r.pending=false;r.sentAt=Date.now()}catch(e){}}
+  reports.unshift(r);save();openConfirm(r);
+}
+
+/* ---------- Confirmation ---------- */
+function openConfirm(r){
+  current=r;$('#cTitle').textContent=r.pending?'Signalement enregistré':'Signalement envoyé !';
+  $('#cSub').textContent=r.pending?'Connexion faible. Votre signalement est enregistré et sera envoyé automatiquement.':'Merci de contribuer à votre ville.';
+  $('#cNum').textContent=r.id;$('#cDate').textContent=fmt(r.createdAt);show('confirm');
+}
+async function share(){const t='Mon signalement urbain : '+current.id;
+  try{if(navigator.share)await navigator.share({text:t});else{await navigator.clipboard.writeText(current.id);toast('Numéro copié.')}}catch(e){}}
+
+/* ---------- Timeline ---------- */
+function openTimeline(r){current=r;show('timeline');drawTimeline();tick=setInterval(drawTimeline,5000)}
+function drawTimeline(){
+  const r=current,s=status(r),i=STEPS.indexOf(s),c=CATS.find(x=>x.id===r.cat);
+  $('#tNum').textContent=r.id;const b=$('#tBadge');b.textContent=ST[s].i+' '+s;b.style.background=ST[s].c;
+  $('#steps').innerHTML=STEPS.map((n,k)=>'<div class="step '+(k===i?'cur':k>i?'todo':'')+'"><div class="rail"><div class="dot" style="'+(k<=i?'background:'+ST[n].c:'')+'"></div>'+
+    (k<2?'<div class="line" style="'+(k<i?'background:'+ST[n].c:'')+'"></div>':'')+'</div><div><div class="t">'+ST[n].i+' '+n+'</div>'+
+    (k===0?'<div class="muted">'+fmt(r.createdAt)+'</div>':'')+'</div></div>').join('');
+  const card=$('#tCard');card.innerHTML='<img alt="Photo du problème"><div><b></b></div><div class="muted note"></div><div class="muted loc"></div>';
+  card.querySelector('img').src=r.photo;card.querySelector('b').textContent=c.i+' '+c.l;
+  card.querySelector('.note').textContent=r.note||'';card.querySelector('.loc').textContent=r.lat.toFixed(5)+', '+r.lng.toFixed(5);
+}
+
+/* ---------- Synchronisation hors ligne ---------- */
+async function sync(){
+  if(!navigator.onLine)return;const p=reports.filter(r=>r.pending);if(!p.length)return;
+  for(const r of p){try{await fakeSend(r);r.pending=false;r.sentAt=Date.now()}catch(e){return}}
+  save();toast("Votre signalement enregistré hors ligne vient d'être transmis.");renderHome();
+}
+window.addEventListener('online',()=>{$('#banner').hidden=true;sync()});
+window.addEventListener('offline',()=>{$('#banner').hidden=false});
+
+/* ---------- Événements ---------- */
+$('#fab').onclick=openCapture;
+$('#listBtn').onclick=()=>{const s=$('#sheet');s.hidden=!s.hidden;$('#listBtn').textContent=s.hidden?'Mes signalements':'Fermer'};
+$('#cClose').onclick=()=>show('home');
+$('#photoBtn').onclick=()=>$('#file').click();
+$('#retake').onclick=()=>$('#file').click();
+$('#file').onchange=onFile;
+$('#send').onclick=submit;
+$('#cTrack').onclick=()=>openTimeline(current);
+$('#cShare').onclick=share;
+$('#cHome').onclick=()=>show('home');
+$('#tBack').onclick=()=>show('home');
+initMap();renderHome();sync();
+</script>
+</body>
+</html>
